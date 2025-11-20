@@ -63,7 +63,7 @@ class PicoKey:
             # connect to the card and perform a few transmits
             self.__card.connect()
 
-        except CardRequestTimeoutException:
+        except Exception:
             try:
                 self.__card = RescuePicoKey()
             except Exception:
@@ -164,18 +164,25 @@ class PicoKey:
 
     def phy(self, data=None):
         if (data is None):
-            resp, sw = self.send(0x1E, cla=0x80, p1=0x01, ne=256)
-            return PhyData.parse(resp)
+            try:
+                resp, sw = self.send(0x1E, cla=0x80, p1=0x00, ne=256)
+                return PhyData.parse(resp)
+            except APDUResponse:
+                pass
+            return None
         else:
             self.send(0x1C, cla=0x80, p1=0x01, data=data)
 
     def flash_info(self):
-        resp, sw = self.send(0x1E, cla=0x80, p1=0x02)
-        free = int.from_bytes(resp[0:4], 'big')
-        used = int.from_bytes(resp[4:8], 'big')
-        total = int.from_bytes(resp[8:12], 'big')
-        nfiles = int.from_bytes(resp[12:16], 'big')
-        size = int.from_bytes(resp[16:20], 'big')
+        try:
+            resp, sw = self.send(0x1E, cla=0x80, p1=0x02)
+            free = int.from_bytes(resp[0:4], 'big')
+            used = int.from_bytes(resp[4:8], 'big')
+            total = int.from_bytes(resp[8:12], 'big')
+            nfiles = int.from_bytes(resp[12:16], 'big')
+            size = int.from_bytes(resp[16:20], 'big')
+        except Exception:
+            free = used = total = nfiles = size = 0
         return {
             'free': free,
             'used': used,

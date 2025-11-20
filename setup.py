@@ -36,7 +36,7 @@ INSTALL_REQUIRES = [
     'cryptography>=3.3',
     'pyusb',
     'pycvc',
-    'pyscard<=2.2.2',
+    'pyscard<2.2.2',
 ]
 
 if sys.platform.startswith('win32'):
@@ -50,7 +50,7 @@ except(IOError, ImportError):
 
 setup(
     name='pypicokey',
-    packages=['picokey'],
+    packages=['picokey','picokey/core'],
     version=version,
     description='PicoKey for Python',
     license='AGPL',
