@@ -36,7 +36,7 @@ INSTALL_REQUIRES = [
     'cryptography>=3.3',
     'pyusb',
     'pycvc',
-    'pyscard<2.2.2',
+    'pyscard>=2.3.1',
 ]
 
 if sys.platform.startswith('win32'):
