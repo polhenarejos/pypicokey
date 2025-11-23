@@ -79,6 +79,14 @@ class PicoKey:
             self.product = Product(Product.UNKNOWN)
             self.version = (0, 0)
 
+    def close(self):
+        if isinstance(self.__card, RescuePicoKey):
+            self.__card.close()
+        else:
+            self.__card.disconnect()
+            self.__card.release()
+        self.__card = None
+
     def transmit(self, apdu):
         response, sw1, sw2 = self.__card.transmit(apdu)
         return response, sw1, sw2

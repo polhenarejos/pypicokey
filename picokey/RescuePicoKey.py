@@ -74,6 +74,16 @@ class RescuePicoKey:
         if (not found):
             raise Exception('Not found any Pico Key device')
 
+    def close(self):
+        if self.__dev:
+            usb.util.dispose_resources(self.__dev)
+
+    def __exit__(self, exc_type, exc, tb):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
     def __str__(self):
         return str(self.__dev)
 
