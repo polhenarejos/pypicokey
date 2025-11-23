@@ -37,6 +37,8 @@ INSTALL_REQUIRES = [
     'pyusb',
     'pycvc',
     'pyscard>=2.3.1',
+    'libusb',
+    'libusb_package',
 ]
 
 if sys.platform.startswith('win32'):

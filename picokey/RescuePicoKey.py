@@ -17,6 +17,7 @@
  */
 """
 
+import os
 import usb.core
 import usb.util
 from .ICCD import ICCD
@@ -36,12 +37,21 @@ class RescuePicoKey:
                     if intf is not None:
                         return True
                 return False
-
-        devs = usb.core.find(find_all=True, custom_match=find_class(0x0B))
+        if (os.name == 'nt'):
+            import libusb_package
+            import usb.backend.libusb1
+            backend = usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)
+        else:
+            backend = None
+        try:
+            devs = usb.core.find(find_all=True, custom_match=find_class(0x0B), backend=backend)
+        except Exception as e:
+            print("RescuePicoKey: exception during usb.core.find:", e)
+            devs = []
         found = False
         for dev in devs:
             if (dev.manufacturer == 'Pol Henarejos'):
-                dev.set_configuration()
+
                 cfg = dev.get_active_configuration()
                 for intf in cfg:
                     if (intf.bInterfaceClass == 0xFF):
@@ -60,7 +70,10 @@ class RescuePicoKey:
                         self.__int = epint.bEndpointAddress if epint else None
                         self.__iccd = ICCD(self)
                         self.__active = None
-                        self.powerOff()
+                        try:
+                            self.powerOff()
+                        except Exception as e:
+                            print("RescuePicoKey: exception during power off:", e)
                         found = True
                         break
         if (not found):
@@ -77,8 +90,15 @@ class RescuePicoKey:
         assert(self.__dev.write(self.__out, data, timeout) == len(data))
 
     def exchange(self, data, timeout=2000):
-        self.write(data=data, timeout=timeout)
-        return self.read(timeout=timeout)
+        try:
+            self.write(data=data, timeout=timeout)
+        except Exception as e:
+            raise Exception("USB write error: " + str(e))
+        try:
+            ret = self.read(timeout=timeout)
+        except Exception as e:
+            raise Exception("USB read error: " + str(e))
+        return ret
 
     def powerOn(self):
         if (not self.__active):
