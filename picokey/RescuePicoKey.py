@@ -27,6 +27,11 @@ from .ICCD import ICCD
 class RescuePicoKey:
 
     def __init__(self):
+        self.__dev = None
+        self.__in = None
+        self.__out = None
+        self.__int = None
+        self.__active = None
 
         class find_class(object):
             def __init__(self, class_):
@@ -73,6 +78,10 @@ class RescuePicoKey:
                         break
         if (not found):
             raise Exception('Not found any Pico Key device')
+
+    @property
+    def device(self):
+        return self.__dev
 
     def close(self):
         if self.__dev:
