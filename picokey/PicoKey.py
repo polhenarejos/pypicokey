@@ -25,6 +25,7 @@ from .RescuePicoKey import RescuePicoKey
 from .RescueMonitor import RescueMonitor, RescueMonitorObserver
 from .PhyData import PhyData
 from .core import NamedIntEnum
+import usb.core
 
 class Platform(NamedIntEnum):
     RP2040 = 0
@@ -130,7 +131,7 @@ class PicoKey:
                 def __init__(self, device):
                     self.__device = device
 
-                def update(self, actions):
+                def update(self, actions: tuple[Optional[usb.core.Device], Optional[usb.core.Device]]):
                     (connected, disconnected) = actions
                     if connected:
                         pass
@@ -139,7 +140,7 @@ class PicoKey:
             try:
                 self.__card = RescuePicoKey()
                 self.__connection_type = ConnectionType.RESCUE
-                self.__observer = PicoRescueObserver(self.__card)
+                self.__observer = PicoRescueObserver(self)
                 self.__monitor = RescueMonitor(device=self.__card, cls_callback=self.__observer)
             except Exception:
                 raise Exception('time-out: no card inserted')
@@ -169,6 +170,9 @@ class PicoKey:
         if (not self.__card):
             return
         if isinstance(self.__card, RescuePicoKey):
+            self.__monitor.stop()
+            self.__monitor = None
+            self.__observer = None
             self.__card.close()
         else:
             self.__card.disconnect()

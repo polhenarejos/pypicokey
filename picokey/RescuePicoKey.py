@@ -86,6 +86,10 @@ class RescuePicoKey:
     def close(self):
         if self.__dev:
             usb.util.dispose_resources(self.__dev)
+            self.__dev = None
+
+    def has_card(self):
+        return self.__dev is not None
 
     def __exit__(self, exc_type, exc, tb):
         self.close()

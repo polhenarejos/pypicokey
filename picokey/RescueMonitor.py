@@ -17,6 +17,7 @@
  */
 """
 
+from typing import Optional
 import usb.core
 import threading
 import time
@@ -26,15 +27,15 @@ class RescueMonitorObserver:
     def __init__(self):
         pass
 
-    def notifyObservers(self, actions):
+    def notifyObservers(self, actions: tuple[Optional[usb.core.Device], Optional[usb.core.Device]]):
         func = getattr(self, "update", None)
         if callable(func):
             func(actions)
 
-    def on_connect(self, device):
+    def on_connect(self, device: Optional[usb.core.Device]):
         self.notifyObservers((device, None))
 
-    def on_disconnect(self, device):
+    def on_disconnect(self, device: Optional[usb.core.Device]):
         self.notifyObservers((None, device))
 
 class RescueMonitor:
@@ -56,8 +57,8 @@ class RescueMonitor:
 
     def stop(self):
         self._running = False
-        if self._thread:
-            self._thread.join()
+        #if self._thread:
+        #    self._thread.join()
 
     def _run(self):
         while self._running:
@@ -73,6 +74,6 @@ class RescueMonitor:
                 # Device disconnected
                 self._device_present = False
                 if self._cls_callback:
-                    self._cls_callback.on_disconnect(self._dev)
+                    self._cls_callback.on_disconnect(self._dev.device)
 
             time.sleep(self.interval)
