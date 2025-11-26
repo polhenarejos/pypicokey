@@ -62,6 +62,9 @@ class RescueMonitor:
 
     def _run(self):
         while self._running:
+            if (self._dev is None) or (self._dev.device is None):
+                time.sleep(self.interval)
+                continue
             dev = usb.core.find(idVendor=self._dev.device.idVendor, idProduct=self._dev.device.idProduct)
 
             if dev and not self._device_present:

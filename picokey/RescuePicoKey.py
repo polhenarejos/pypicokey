@@ -27,6 +27,15 @@ from .core.log import get_logger
 
 logger = get_logger("RescuePicoKey")
 
+class RescuePicoKeyError(Exception):
+    pass
+
+class RescuePicoKeyNotFoundError(RescuePicoKeyError):
+    pass
+
+class RescuePicoKeyInvalidStateError(RescuePicoKeyError):
+    pass
+
 class RescuePicoKey:
 
     def __init__(self):
@@ -90,7 +99,7 @@ class RescuePicoKey:
                         break
         if (not found):
             logger.error("No suitable device found")
-            raise Exception('Not found any Pico Key device')
+            raise RescuePicoKeyNotFoundError('Not found any Pico Key device')
 
     @property
     def device(self):
@@ -118,16 +127,24 @@ class RescuePicoKey:
 
     def read(self, timeout=2000):
         logger.debug("Reading data from device")
-        ret = self.__dev.read(self.__in, 4096, timeout)
-        logger.trace(f"Data read from device: {' '.join([f'{x:02X}' for x in ret])}")
-        logger.debug("Read data from device")
-        return ret
+        try:
+            ret = self.__dev.read(self.__in, 4096, timeout)
+            logger.trace(f"Data read from device: {' '.join([f'{x:02X}' for x in ret])}")
+            logger.debug("Read data from device")
+            return ret
+        except Exception as e:
+            logger.error("USB read error: " + str(e))
+            raise RescuePicoKeyInvalidStateError("USB read error: " + str(e))
 
     def write(self, data, timeout=2000):
         logger.debug("Writing data to device")
         logger.trace(f"Data to write to device: {' '.join([f'{x:02X}' for x in data])}")
-        assert(self.__dev.write(self.__out, data, timeout) == len(data))
-        logger.debug("Wrote data to device")
+        try:
+            assert(self.__dev.write(self.__out, data, timeout) == len(data))
+            logger.debug("Wrote data to device")
+        except Exception as e:
+            logger.error("USB write error: " + str(e))
+            raise RescuePicoKeyInvalidStateError("USB write error: " + str(e))
 
     def exchange(self, data, timeout=2000):
         logger.debug("Exchanging data with device")
@@ -135,12 +152,12 @@ class RescuePicoKey:
             self.write(data=data, timeout=timeout)
         except Exception as e:
             logger.error("USB write error: " + str(e))
-            raise Exception("USB write error: " + str(e))
+            raise RescuePicoKeyInvalidStateError("USB write error: " + str(e))
         try:
             ret = self.read(timeout=timeout)
         except Exception as e:
             logger.error("USB read error: " + str(e))
-            raise Exception("USB read error: " + str(e))
+            raise RescuePicoKeyInvalidStateError("USB read error: " + str(e))
         return ret
 
     def powerOn(self):
@@ -168,6 +185,11 @@ class RescuePicoKey:
         logger.debug("Reconnecting to device")
         self.close()
         time.sleep(1)
-        self.__init__()
+        try:
+            self.__init__()
+        except Exception as e:
+            logger.error("Reconnection failed: %s", e)
+            self.close()
+            raise e
         logger.debug("Reconnected to device")
         return self

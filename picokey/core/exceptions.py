@@ -17,28 +17,11 @@
  */
 """
 
-import enum
-from typing import Union
+class PicoKeyError(Exception):
+    pass
 
-class NamedIntEnum(enum.IntEnum):
-    def __str__(self):
-        return self.name
+class PicoKeyNotFoundError(PicoKeyError):
+    pass
 
-    def __format__(self, fmt):
-        if any(c in fmt for c in "xXod"):
-            return format(self.value, fmt)
-        return self.name
-
-    @classmethod
-    def from_string(cls, value: Union[str, int]) -> "NamedIntEnum":
-        if not value:
-            return cls.UNKNOWN
-
-        value = value.strip().lower()
-
-        for member in cls:
-            if member.value == value or member.name.lower() == value:
-                return member
-
-        return cls.UNKNOWN
-
+class PicoKeyInvalidStateError(PicoKeyError):
+    pass

@@ -25,6 +25,7 @@ from .RescuePicoKey import RescuePicoKey
 from .RescueMonitor import RescueMonitor, RescueMonitorObserver
 from .PhyData import PhyData
 from .core import NamedIntEnum
+from .core.exceptions import PicoKeyNotFoundError, PicoKeyInvalidStateError
 import usb.core
 from .core.log import get_logger
 
@@ -156,8 +157,10 @@ class PicoKey:
                 def update(self, actions: tuple[Optional[usb.core.Device], Optional[usb.core.Device]]):
                     (connected, disconnected) = actions
                     if connected:
+                        logger.debug("Observer: Rescue device connected")
                         pass
                     if disconnected:
+                        logger.debug("Observer: Rescue device disconnected, closing...")
                         self.__device.close()
             try:
                 self.__card = RescuePicoKey()
@@ -169,7 +172,7 @@ class PicoKey:
                 self.__monitor = RescueMonitor(device=self.__card, cls_callback=self.__observer)
             except Exception:
                 logger.error("No PicoKey device detected")
-                raise Exception('time-out: no card inserted')
+                raise PicoKeyNotFoundError('time-out: no card inserted')
         try:
             logger.debug("Selecting applet in rescue mode...")
             resp, sw1, sw2 = self.select_applet(rescue=True)
@@ -208,27 +211,35 @@ class PicoKey:
             self.__card.close()
         else:
             logger.debug("Removing card monitor observer...")
-            self.__monitor.deleteObserver(self.__observer)
-            self.__observer = None
-            self.__monitor = None
+            if (self.__monitor and self.__observer):
+                self.__monitor.deleteObserver(self.__observer)
+                self.__observer = None
+                self.__monitor = None
             logger.debug("Disconnecting and releasing card...")
-            self.__card.disconnect()
-            logger.debug("Card disconnected")
-            self.__card.release()
+            try:
+                self.__card.disconnect()
+                logger.debug("Card disconnected")
+                self.__card.release()
+            except Exception as e:
+                logger.error("Error during card disconnect/release: " + str(e))
         self.__card = None
 
     def transmit(self, apdu: list[int]):
         if (not self.__card):
             logger.error("No device connected")
-            raise Exception('No device connected')
-        response, sw1, sw2 = self.__card.transmit(apdu)
-        return response, sw1, sw2
+            raise PicoKeyNotFoundError('No device connected')
+        try:
+            response, sw1, sw2 = self.__card.transmit(apdu)
+            return response, sw1, sw2
+        except Exception as e:
+            logger.error("Transmission error: " + str(e))
+            raise PicoKeyInvalidStateError("Transmission error: " + str(e))
 
     def send(self, command: int, cla: int = 0x00, p1: int =0x00, p2: int=0x00, ne : Optional[int] = None, data : Optional[list[int]] = None, codes : list[int] = []):
         logger.debug(f"Sending command {hex(command)} with cla={hex(cla)}, p1={hex(p1)}, p2={hex(p2)}, ne={ne}")
         if (not self.__card):
             logger.error("No device connected")
-            raise Exception('No device connected')
+            raise PicoKeyNotFoundError('No device connected')
         lc = []
         dataf = []
         if (data):
@@ -256,12 +267,18 @@ class PicoKey:
             response, sw1, sw2 = self.__card.transmit(apdu)
         except Exception:
             logger.debug("Reconnecting card after transmit failure")
-            self.__card.reconnect()
+
+            try:
+                self.__card.reconnect()
+            except Exception as e:
+                logger.error("Reconnection failed: " + str(e))
+                self.close()
+                raise PicoKeyNotFoundError('Reconnection failed: ' + str(e))
             try:
                 response, sw1, sw2 = self.__card.transmit(apdu)
             except Exception as e:
                 logger.error("APDU transmission error after reconnect: " + str(e))
-                raise Exception("APDU transmission error after reconnect: " + str(e))
+                raise PicoKeyInvalidStateError("APDU transmission error after reconnect: " + str(e))
 
         code = (sw1<<8|sw2)
         if (sw1 != 0x90):
