@@ -362,3 +362,7 @@ class PicoKey:
         logger.debug(f"Setting secure boot: bootkey_index={bootkey_index}, lock={lock}")
         data = bytes([bootkey_index & 0xFF, 1 if lock else 0])
         self.send(0x1C, cla=0x80, p1=0x02, data=data)
+
+    def reboot(self, bootsel: bool = False):
+        logger.debug("Rebooting device into BOOTSEL mode" if bootsel else "Rebooting device into normal mode")
+        self.send(0x1F, cla=0x80, p1=0x01 if bootsel else 0x00)
