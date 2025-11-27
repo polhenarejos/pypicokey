@@ -175,7 +175,7 @@ class PicoKey:
                 raise PicoKeyNotFoundError('time-out: no card inserted')
         try:
             logger.debug("Selecting applet in rescue mode...")
-            resp, sw1, sw2 = self.select_applet(rescue=True)
+            resp, sw1, sw2 = self.select_applet()
             logger.debug(f"Applet selected with response code: 0x{sw1:02X}{sw2:02X}")
             if (sw1 == 0x90 and sw2 == 0x00):
                 self.platform = Platform(resp[0])
@@ -329,16 +329,14 @@ class PicoKey:
             raise Exception('Secure Channel token verification failed')
         self.__sc = sc
 
-    def select_applet(self, rescue : bool = False):
-        if (rescue):
-            logger.debug("Selecting rescue applet")
-            return self.transmit([0x00, 0xA4, 0x04, 0x04, 0x08, 0xA0, 0x58, 0x3F, 0xC1, 0x9B, 0x7E, 0x4F, 0x21, 0x00])
-        logger.debug("Selecting standard applet")
-        return self.transmit([0x00, 0xA4, 0x04, 0x00, 0x0B, 0xE8, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x81, 0xC3, 0x1F, 0x02, 0x01, 0x00])
+    def select_applet(self):
+        logger.debug("Selecting rescue applet")
+        return self.transmit([0x00, 0xA4, 0x04, 0x04, 0x08, 0xA0, 0x58, 0x3F, 0xC1, 0x9B, 0x7E, 0x4F, 0x21, 0x00])
 
     def phy(self, data : Optional[list[int]] = None):
         if (data is None):
             try:
+                self.select_applet()
                 resp, sw = self.send(0x1E, cla=0x80, p1=0x00, ne=256)
                 return PhyData.parse(resp)
             except Exception:
@@ -350,6 +348,7 @@ class PicoKey:
     def flash_info(self):
         logger.debug("Retrieving flash info")
         try:
+            self.select_applet()
             resp, sw = self.send(0x1E, cla=0x80, p1=0x02)
             free = int.from_bytes(resp[0:4], 'big')
             used = int.from_bytes(resp[4:8], 'big')
@@ -368,6 +367,7 @@ class PicoKey:
 
     def secure_info(self):
         logger.debug("Retrieving secure boot info")
+        self.select_applet()
         resp, sw = self.send(0x1E, cla=0x80, p1=0x03)
         return {
             'enabled': resp[0] != 0,
@@ -377,9 +377,11 @@ class PicoKey:
 
     def secure_boot(self, bootkey_index: int = 0, lock: bool = False):
         logger.debug(f"Setting secure boot: bootkey_index={bootkey_index}, lock={lock}")
+        self.select_applet()
         data = bytes([bootkey_index & 0xFF, 1 if lock else 0])
         self.send(0x1C, cla=0x80, p1=0x02, data=data)
 
     def reboot(self, bootsel: bool = False):
         logger.debug("Rebooting device into BOOTSEL mode" if bootsel else "Rebooting device into normal mode")
+        self.select_applet()
         self.send(0x1F, cla=0x80, p1=0x01 if bootsel else 0x00)
